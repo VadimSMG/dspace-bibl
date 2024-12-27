@@ -1,0 +1,95 @@
+Для автоматичного управління контейнерами Docker, щоб при падінні одного контейнера запускався його дубль, можна використовувати **Docker Compose** або **Docker Swarm**. Ось як це реалізувати:
+
+## Використання Docker Compose
+
+**Docker Compose** дозволяє визначити та запустити багатоконтейнерні Docker-додатки. Ви можете створити файл `docker-compose.yml`, в якому вказати кілька служб (контейнерів) та їх параметри.
+
+### Приклад `docker-compose.yml`:
+
+```yaml
+version: '3'
+services:
+  app:
+    image: myapp:latest
+    deploy:
+      replicas: 2
+    restart: always
+```
+
+- **replicas: 2** - це означає, що буде запущено два екземпляри контейнера.
+- **restart: always** - контейнер буде автоматично перезапускатися у разі збою.
+
+Для запуску контейнерів використовуйте команду:
+
+```bash
+docker-compose up -d
+```
+
+## Використання Docker Swarm
+
+**Docker Swarm** - це вбудований механізм для управління кластером Docker. Він дозволяє масштабувати контейнери та забезпечувати їх високу доступність.
+
+### Налаштування Swarm:
+
+1. Ініціалізуйте Swarm на вашій машині:
+
+   ```bash
+   docker swarm init
+   ```
+
+2. Додайте службу з автоматичним перезапуском:
+
+   ```bash
+   docker service create --name my_service --replicas 2 --restart-condition any myapp:latest
+   ```
+
+- **--replicas 2** - кількість копій служби.
+- **--restart-condition any** - служба буде перезапускатися при будь-якому збою.
+
+## Керування контейнерами
+
+Для управління запущеними контейнерами можна використовувати такі команди:
+
+- **Перегляд запущених контейнерів**:
+  ```bash
+  docker ps
+  ```
+
+- **Перезапуск контейнера**:
+  ```bash
+  docker restart container_name_or_id
+  ```
+
+- **Зупинка контейнера**:
+  ```bash
+  docker stop container_name_or_id
+  ```
+
+Ці методи дозволяють ефективно керувати контейнерами Docker, забезпечуючи їх автоматичний перезапуск у разі падіння.
+
+Citations:
+[1] https://1cloud.ru/help/docker/docker_container
+[2] https://itedu.center/ua/blog/ratings/docker_linux/
+[3] https://freehost.com.ua/ukr/faq/articles/izuchenie-bazovih-komand-razvetvlennoj-sistemi-upravlenija-prilozhenijami-docker/
+[4] https://hosting.in.ua/ua/articles/nastroyka-po/konteynernaya-sreda-razrabotki-prilozheniy-docker-ponyatie-ustanovka-i-nastroyka/
+[5] https://habr.com/ru/companies/first/articles/703708/
+[6] https://www.8host.com/blog/zapusk-komand-v-kontejnere-docker/
+[7] https://itedu.center/ua/blog/devops/docker-prostimi-slovami-pro-kontejnerizaciyu/
+[8] https://ru.hexlet.io/courses/docker-basics/lessons/container-management/theory_unit
+При налаштуванні контейнерів Docker з використанням Docker Compose або Docker Swarm, автоматичне перемикання між працюючими контейнерами у разі падіння одного з них дійсно відбувається.
+
+### Docker Compose
+Коли ви використовуєте Docker Compose з параметром `restart: always`, це забезпечує автоматичний перезапуск контейнера, якщо він зупиняється через помилку. Однак, якщо ви вказали кілька реплік (наприклад, через `deploy.replicas`), Docker Compose самостійно не перемикає трафік між контейнерами. Для цього вам знадобиться додатковий балансувальник навантаження або інша система управління трафіком.
+
+### Docker Swarm
+Docker Swarm забезпечує більш розширене управління контейнерами. Використовуючи команду `docker service create` з параметром `--replicas`, ви можете створити декілька екземплярів одного сервісу. У разі падіння одного з контейнерів, Swarm автоматично запустить новий екземпляр цього сервісу, що дозволяє підтримувати задану кількість реплік. Таким чином, Swarm забезпечує **автоматичне перемикання** між працюючими контейнерами, гарантуючи високу доступність.
+
+Отже, для досягнення автоматичного перемикання між контейнерами при їх падінні рекомендовано використовувати Docker Swarm, оскільки він надає вбудовані механізми для управління репліками та автоматичного відновлення.
+
+Citations:
+[1] https://dou.ua/forums/topic/41858/
+[2] https://fotc.com/ua/blog/google-cloud-run/
+[3] https://itedu.center/ua/blog/articles/9-docker-usecases/
+[4] https://ela.kpi.ua/server/api/core/bitstreams/f0ec2bf1-3d83-4044-91ab-6be06c425dde/content
+[5] https://robotdreams.cc/uk/blog/607-docker-basics-part-1
+[6] https://istio.io/latest/uk/docs/ops/configuration/security/harden-docker-images/

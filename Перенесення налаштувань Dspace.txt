@@ -1,0 +1,38 @@
+Для перенесення налаштувань DSpace з версії 6.0 на версію 8.0, слід врахувати кілька ключових етапів. Ось покрокова інструкція:
+
+## Підготовка до перенесення
+
+1. **Резервне копіювання**: Перед будь-якими змінами, створіть резервну копію існуючої бази даних та конфігураційних файлів DSpace 6.0.
+2. **Оновлення середовища**: Переконайтеся, що ваше середовище (Java, база даних, сервер) відповідає вимогам DSpace 8.0.
+
+## Перенесення даних
+
+1. **Експорт метаданих**: Використовуйте команду `dspace metadata-export` для експорту метаданих з DSpace 6.0 у форматі XML або CSV.
+2. **Перенесення контенту**: Скопіюйте вміст з папки `bitstream` з DSpace 6.0 до відповідної папки в DSpace 8.0.
+
+## Налаштування DSpace 8.0
+
+1. **Конфігураційні файли**: Відкрийте конфігураційні файли DSpace 8.0 (зазвичай це `dspace.cfg`), і внесіть необхідні зміни, відповідно до ваших попередніх налаштувань.
+2. **Імпорт метаданих**: Використовуйте команду `dspace metadata-import` для імпорту метаданих з файлів, які ви експортували раніше.
+
+## Тестування
+
+1. **Запуск DSpace**: Запустіть DSpace 8.0 та перевірте, чи всі функції працюють коректно.
+2. **Перевірка даних**: Переконайтеся, що всі метадані та контент перенесені без помилок.
+
+## Додаткові рекомендації
+
+- Ознайомтеся з документацією DSpace щодо специфічних змін між версіями, оскільки можуть бути важливі зміни в структурі бази даних або конфігураціях.
+- Зверніть увагу на нові функції та можливості в DSpace 8.0, які можуть бути корисними для вашого проекту.
+
+Цей процес може варіюватися в залежності від специфіки вашої установки DSpace, тому рекомендується перевірити документацію на офіційному сайті DSpace для отримання детальнішої інформації про оновлення та налаштування системи[5].
+
+Citations:
+[1] http://dspace.wunu.edu.ua/bitstream/316497/31518/1/%D0%9E%D1%81%D0%BD%D0%BE%D0%B2%D0%B8%20%D0%BA%D1%96%D0%B1%D0%B5%D1%80%D0%B1%D0%B5%D0%B7%D0%BF%D0%B5%D0%BA%D0%B8.pdf
+[2] https://sgm.kntu.kr.ua/file/content/11454/osnovy-ahroinzhenerii-ta-informatsiini-tekhnolohii-metodychni-rekomendatsii-do-vykonannia-praktychnykh-robit-dlia-zdobuvachiv-pershoho-bakalavrskoho-rivnia-vyshchoi-osvity-za-osvitno-profesiinoyu-prohramoyu-ahroinzheneriia-spets-208-ahroinzheneriia-.pdf
+[3] https://dspace.onua.edu.ua/server/api/core/bitstreams/ad197ca6-e5e2-4a7f-be2d-4c7d07212842/content
+[4] https://dspace.chmnu.edu.ua/jspui/bitstream/123456789/380/1/%D0%91%D0%BE%D0%B9%D0%BA%D0%BE%20%D0%90.%20%D0%9F.%20%D0%9A%D0%BE%D0%BC%D0%BF'%D1%8E%D1%82%D0%B5%D1%80%D0%BD%D0%B5%20%D0%BF%D1%80%D0%BE%D1%94%D0%BA%D1%82%D1%83%D0%B2%D0%B0%D0%BD%D0%BD%D1%8F%20%D0%B2%20%D1%81%D0%B5%D1%80%D0%B5%D0%B4%D0%BE%D0%B2%D0%B8%D1%89%D1%96.pdf
+[5] https://wiki.tntu.edu.ua/%D0%9D%D0%B0%D0%BB%D0%B0%D1%88%D1%82%D1%83%D0%B2%D0%B0%D0%BD%D0%BD%D1%8F_DSpace
+[6] https://uk.wikipedia.org/wiki/LibreCAD
+[7] http://library.kpi.kharkov.ua/files/documents/zvit.pdf
+[8] https://iq.vntu.edu.ua/repository/getfile.php/5700.pdf

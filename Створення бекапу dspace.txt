@@ -1,0 +1,48 @@
+Для створення резервної копії налаштувань DSpace 6.0, вам потрібно виконати кілька простих кроків. Ось покрокова інструкція:
+
+## Кроки для резервного копіювання налаштувань DSpace 6.0
+
+### 1. Резервне копіювання конфігураційних файлів
+
+- **Знайдіть конфігураційні файли**: Основні конфігураційні файли DSpace зазвичай знаходяться в каталозі `dspace/config`. Вам потрібно скопіювати весь цей каталог або окремі файли, такі як `dspace.cfg`, `local.cfg` та інші специфічні файли конфігурації.
+
+- **Копіювання файлів**: Використовуйте команду копіювання в терміналі:
+  ```bash
+  cp -r /path/to/dspace/config /path/to/backup/location
+  ```
+
+### 2. Резервне копіювання бази даних
+
+Вам також слід створити резервну копію бази даних, яка використовується DSpace:
+
+#### Для PostgreSQL:
+- Використовуйте команду `pg_dump`:
+  ```bash
+  pg_dump -U username -h hostname -F c -b -v -f "/path/to/backup/db_backup.backup" dbname
+  ```
+
+#### Для MySQL:
+- Використовуйте команду `mysqldump`:
+  ```bash
+  mysqldump -u username -p dbname > /path/to/backup/db_backup.sql
+  ```
+
+### 3. Перевірка резервних копій
+
+Після завершення резервного копіювання перевірте, що всі файли та база даних збережені успішно. Це можна зробити, переглянувши вміст каталогу резервних копій або спробувавши відновити базу даних на тестовому сервері.
+
+### 4. Документація
+
+Рекомендується також ознайомитися з документацією DSpace для отримання додаткових рекомендацій щодо резервного копіювання та відновлення, оскільки специфіка може змінюватись залежно від вашої конфігурації.
+
+Ці кроки дозволять вам створити повну резервну копію налаштувань і даних DSpace 6.0, що забезпечить можливість відновлення системи у разі потреби.
+
+Citations:
+[1] https://fredo.com.ua/help/admbackup.htm
+[2] https://www.softcom.ua/ua/bas/support-bas/backup.php
+[3] https://support.google.com/android/answer/2819582?hl=uk
+[4] https://dspace.nuft.edu.ua/server/api/core/bitstreams/99ec15d8-a700-4bf8-9191-4d99551417c1/content
+[5] https://support.google.com/googleone/answer/9149304?hl=uk&co=GENIE.Platform%3DAndroid
+[6] https://dspace.uzhnu.edu.ua/jspui/bitstream/lib/65332/1/OS_methodical_materials.pdf
+[7] https://shels.com.ua/blog.htm?b=109
+[8] https://docs.art-zvit.com.ua/15_4_backup_db.htm

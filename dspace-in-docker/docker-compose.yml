@@ -1,0 +1,36 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: dspace_user
+      POSTGRES_PASSWORD: dspace_password
+      POSTGRES_DB: dspace
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  solr:
+    image: solr:latest
+    ports:
+      - "8983:8983"
+    volumes:
+      - solr_data:/opt/solr/server/solr/mycores
+
+  dspace:
+    image: dspace/dspace
+    depends_on:
+      - postgres
+      - solr
+    command: sh -c "rm -f /dspace/lib/commons-logging.jar && exec catalina.sh run"
+    environment:
+      DB_HOST: postgres
+      DB_NAME: dspace
+      DB_USER: dspace_user
+      DB_PASSWORD: dspace_password
+      SOLR_HOST: solr
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:
+  solr_data:

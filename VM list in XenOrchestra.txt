@@ -1,0 +1,4 @@
+#VM list in XenOrchestra
+xe vm-list 
+#VM disks 
+xe vm-disk-list
