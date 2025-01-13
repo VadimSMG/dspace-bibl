@@ -50,18 +50,21 @@ services:
       target: 8080
     - published: 8000
       target: 8000
+    # stdin_open: відкриває стандартний ввід контейнеру.
     stdin_open: true
+    # tty: створює термінал для контейнеру.
     tty: true
+    # Налаштуванян сховищ для збереження даних при перезапусках контейнеру.
     volumes:
-    # Keep DSpace assetstore directory between reboots
+    # Зберінає каталог DSpace assetstore між перезапусками контейнеру.
     - assetstore:/dspace/assetstore
-    # Mount local [src]/dspace/config/ to container. This syncs your local configs with container
-    # NOTE: Environment variables specified above will OVERRIDE any configs in local.cfg or dspace.cfg
+    # Монтує каталог [src]/dspace/config/ у локальний каталог для синхронізації файлів конфігурації.
+    # NOTE: Змінні середовища, які були визначено вище, ПЕРЕПИСУЮТЬ дані конфігурації у файлах local.cfg та dspace.cfg.
     - ./dspace/config:/dspace/config
-    # Ensure that the database is ready BEFORE starting tomcat
-    # 1. While a TCP connection to dspacedb port 5432 is not available, continue to sleep
-    # 2. Then, run database migration to init database tables
-    # 3. Finally, start DSpace
+    # Перевірка, що база даних активна ДО запуску tomcat (порядок виконання умови while):
+    # 1. Очікування на з'єднання з базою даних на порті 5432 (якщо з'єднання не активне, то залишаєтсья в режимі очікування).
+    # 2. Запускає міграцію бази даних.
+    # 3. Запуск DSpace за допомогою Java.
     entrypoint:
     - /bin/bash
     - '-c'
@@ -69,13 +72,13 @@ services:
       while (!</dev/tcp/dspacedb/5432) > /dev/null 2>&1; do sleep 1; done;
       /dspace/bin/dspace database migrate
       java -jar /dspace/webapps/server-boot.jar --dspace.dir=/dspace
-  # DSpace PostgreSQL database container
+  # Контейнер з базою даних PostgreSQL
   dspacedb:
     container_name: dspacedb
-    # Uses a custom Postgres image with pgcrypto installed
+    # Для контейенра використовужться кастомний образ Postgres зі встановленим плагіном pgcrypto. Формат запису дозволяє динамічно визначати реєстр, власника та версію образу.
     image: "${DOCKER_REGISTRY:-docker.io}/${DOCKER_OWNER:-dspace}/dspace-postgres-pgcrypto:${DSPACE_VER:-latest}"
     build:
-      # Must build out of subdirectory to have access to install script for pgcrypto
+      # Контекст вказує на те, що збірку образу необхідно виконувати поза піддерикторією для можливості запуску скрипта встановлення плагіна pgcrypto.
       context: ./dspace/src/main/docker/dspace-postgres-pgcrypto/
     environment:
       PGDATA: /pgdata
@@ -88,17 +91,19 @@ services:
     stdin_open: true
     tty: true
     volumes:
-    # Keep Postgres data directory between reboots
+    # Збереження даних між перезавантаженнями контейенру.
     - pgdata:/pgdata
-  # DSpace Solr container
+  # Контейнер для Apache Solr.
   dspacesolr:
     container_name: dspacesolr
+    # Використовується динамічний виклик образу для отримання свіжлю версії.
     image: "${DOCKER_REGISTRY:-docker.io}/${DOCKER_OWNER:-dspace}/dspace-solr:${DSPACE_VER:-latest}"
     build:
       context: ./dspace/src/main/docker/dspace-solr/
-      # Provide path to Solr configs necessary to build Docker image
+      # Додатково вказується шлях до каталогу з конфігурацією Solr для корректної побудови образу.
       additional_contexts:
         solrconfigs: ./dspace/solr/
+      # Визначення версії Solr, яка буде використовуватися.
       args:
         SOLR_VERSION: "${SOLR_VER:-8.11}"
     networks:
@@ -108,14 +113,15 @@ services:
       target: 8983
     stdin_open: true
     tty: true
+    # Вказується робочий каталог для виконання команд у контейнері.
     working_dir: /var/solr/data
     volumes:
-    # Keep Solr data directory between reboots
+    # Використовуєтсья для збереження даних Solr при перезавантаженні контейенру.
     - solr_data:/var/solr/data
-    # Initialize all DSpace Solr cores then start Solr:
-    # * First, run precreate-core to create the core (if it doesn't yet exist). If exists already, this is a no-op
-    # * Second, copy configsets to this core:
-    #   Updates to Solr configs require the container to be rebuilt/restarted: `docker compose -p d7 up -d --build dspacesolr`
+    # Ініціалізація всіх ядер (cores) DSpace Solr та запуск безпосередньо Solr:
+    # 1. Створення ядра (core) для різних функцій DSpace за допомогою 'precreate-core' (якщо вже ыснуэ створене ядро, то цей крок не виконується).
+    # 2. Виконати копіювання конфігурацій для створення ядра: всі оновлення конфігурації Solr потребуж перебудови/перезапуску контейенру `docker compose -p d7 up -d --build dspacesolr`.
+    # 3. Виконується запуск Solr за допомогою команди 'exec solr -f'.
     entrypoint:
     - /bin/bash
     - '-c'
