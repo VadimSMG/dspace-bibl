@@ -3,7 +3,7 @@ docker run -it ubuntu
 # Update packages
 apt update
 # Install Java 
-apt install openjdk-11-jdk openjdk-17-jdk maven ant postgresql postgresql-contrib wget lsof git -y
+apt install openjdk-21-jdk
 <!--Select region "Europe" timezone "Athenes"-->
 java --version
 ## Add OpenJDK to PATH
@@ -11,11 +11,125 @@ java --version
 sed -i '/^export JAVA_HOME=/d' ~/.bashrc
 sed -i '/^export PATH=\$PATH:\$JAVA_HOME\/bin/d' ~/.bashrc
 <!-- Add new sting at the end of .bashrc-->
-echo 'export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64' >> ~/.bashrc
+echo 'export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64' >> ~/.bashrc
 echo 'export PATH=$PATH:$JAVA_HOME/bin' >> ~/.bashrc
 source ~/.bashrc
 ## Check JAVA_HOME
 echo $JAVA_HOME
+
+# Install Apache Maven 3.9.9
+wget https://dlcdn.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz
+tar -xvf apache-maven-3.9.9-bin.tar.gz
+mv apache-maven-3.9.9 /opt/maven
+rm apache-maven-3.9.9-bin.tar.gz
+## Configure environment for Maven
+echo 'export M2_HOME=/opt/maven' >> /etc/profile.d/maven.sh
+echo 'export PATH=$M2_HOME/bin:$PATH' >> /etc/profile.d/maven.sh
+source /etc/profile.d/maven.sh
+## Check Maven
+mvn -version
+
+# Install Ant 1.10.15
+wget https://dlcdn.apache.org//ant/binaries/apache-ant-1.10.15-bin.tar.gz
+tar -xvf apache-ant-1.10.15-bin.tar.gz
+mv apache-ant-1.10.15 /opt/ant
+rm apache-ant-1.10.15-bin.tar.gz
+## Configure environment for Ant
+echo 'export ANT_HOME=/opt/ant' >> /etc/profile.d/ant.sh
+echo 'export PATH=$ANT_HOME/bin:$PATH' >> /etc/profile.d/ant.sh
+source /etc/profile.d/ant.sh
+## Check Ant
+ant -version
+
+# Install PostgreSQL
+apt install -y postgresql-common
+/usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
+apt install postgresql-17 postgesql-contrib
+## Configure TCP/IP in PostgreSQL for DSpace
+sed -i "/listen_addresses = 'localhost'/s/./ /" /etc/postgresql/17/main/postgresql.conf
+sed -i '$ a host    dspace dspace   127.0.0.1       255.255.255.255         md5' /etc/postgresql/17/main/pg_hba.conf
+## Check PostgreSQL service
+service postgresql status
+service postgresql start
+
+# Install Solr 9
+wget https://downloads.apache.org/solr/solr/9.7.0/solr-9.7.0.tgz
+tar xzf solr-9.7.0.tgz
+apt install lsof
+bash solr-*/bin/install_solr_service.sh solr-*.tgz
+rm solr-9.7.0.tgz
+## Configure file limits for Solr
+echo '* soft nofile 65536' >> /etc/security/limits.conf
+echo '* hard nofile 65536' >> /etc/security/limits.conf
+echo 'fs.file-max = 100000' >> /etc/sysctl.conf
+sysctl -p
+## Check file limits
+ulimit -n
+cat /proc/sys/fs/file-max
+## Check Solr
+service solr status
+
+# Install DSpace backend
+## Create DSpace system user
+useradd -m dspace
+## Download DSpace source archive
+git clone https://github.com/DSpace/DSpace.git
+wget https://github.com/DSpace/DSpace/archive/refs/tags/dspace-8.0.tar.gz
+mv /DSpace /dspace-source
+
+## Create DSpace user for PostgreSQL
+### Switch to postgers user
+su postgres
+### Open PostgreSQL shell
+psql
+### Create user for DSpace (test PW 1111)
+CREATE USER dspace WITH PASSWORD 'ваш_пароль' CREATEDB;
+### Check users
+\du
+
+## Create DSpace database
+CREATE DATABASE dspace WITH ENCODING 'UTF8' OWNER dspace;
+### Check avaiable datatbases
+\l
+
+## Enable pgcrypro in DSpace database
+### Connect to dspace database
+\c dspace
+### Create pgcrypto extension for this database
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+### Check the pgcrypto was installed
+\dx
+## Live the psql shell
+\q
+## Exit from postgres user to root
+exit
+
+## Initial configuration (local.cfg)
+### Copy local.cfg.EXAMPLE as local.cfg
+mv /dspace-source/dspace/config/local.cfg.EXAMPLE /dspace-source/dspace/config/local.cfg
+### Edit new local.cfg
+nano /dspace-source/dspace/config/local.cfg
+<!-- Change this file for personal porposes. For test porposes use local.cfg.EXAMLE -->
+
+## Making DSpace directory
+mkdir dspace
+chown -R dspace:dspace /dspace
+chown -R dspace:dspace /dspace-source
+chmod -R u+w /dspace-source
+## Check permisions
+ls -l /dspace-source/
+ls -l /dspace
+## Build Installation 
+su - dspace
+mvn -version
+cd /dspace-source
+mvn clean install
+## Isntall DSpace
+cd /dspace-source/dspace/target/dspace-installer
+ant fresh_install
+
+
+
 # Install Maven latest
 apt install maven
 mvn -v
