@@ -38,7 +38,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.test
-    # Визначення залежності від контейнеру 'dspacedb'. Вказує, що контейенр не буде запущено, поки не буде активного контейнеру з базою даних.
+    # Визначення залежності від контейнеру 'dspacedb'. Вказує, що контейнер не буде запущено, поки не буде активного контейнеру з базою даних.
     depends_on:
     - dspacedb
     # Вказує мережу, до якої буже підключено створений контейнер.
@@ -105,7 +105,7 @@ services:
         solrconfigs: ./dspace/solr/
       # Визначення версії Solr, яка буде використовуватися.
       args:
-        SOLR_VERSION: "${SOLR_VER:-8.11}"
+        SOLR_VERSION: "${SOLR_VER:-9.7}"
     networks:
       dspacenet:
     ports:

@@ -1,9 +1,9 @@
 # Run Ubuntu docker image (in interactive mode)
-docker run -it ubuntu
+docker run -it -p 8000:8000 -p 8080:8080 -p 8983:8983 -p 5432:5432 ubuntu
 # Update packages
-apt update
+apt update -y
 # Install Java 
-apt install openjdk-21-jdk
+apt install openjdk-21-jdk openjdk-17-jdk wget -y
 <!--Select region "Europe" timezone "Athenes"-->
 java --version
 ## Add OpenJDK to PATH
@@ -42,9 +42,9 @@ source /etc/profile.d/ant.sh
 ant -version
 
 # Install PostgreSQL
-apt install -y postgresql-common
+apt install -y postgresql-common -y
 /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
-apt install postgresql-17 postgesql-contrib
+apt install postgresql-17 postgresql-contrib -y
 ## Configure TCP/IP in PostgreSQL for DSpace
 sed -i "/listen_addresses = 'localhost'/s/./ /" /etc/postgresql/17/main/postgresql.conf
 sed -i '$ a host    dspace dspace   127.0.0.1       255.255.255.255         md5' /etc/postgresql/17/main/pg_hba.conf
@@ -55,7 +55,7 @@ service postgresql start
 # Install Solr 9
 wget https://downloads.apache.org/solr/solr/9.7.0/solr-9.7.0.tgz
 tar xzf solr-9.7.0.tgz
-apt install lsof
+apt install lsof -y
 bash solr-*/bin/install_solr_service.sh solr-*.tgz
 rm solr-9.7.0.tgz
 ## Configure file limits for Solr
@@ -68,6 +68,29 @@ ulimit -n
 cat /proc/sys/fs/file-max
 ## Check Solr
 service solr status
+## Check Solr user
+cat /etc/passwd | grep 'solr'
+## Allow acces to Solr fom external IPs
+<!-- Find parmeter SOLR_JETTY_HOST and set it to allow all (0.0.0.0)-->
+sed -i 's/^SOLR_JETTY_HOST=.*/SOLR_JETTY_HOST=0.0.0.0/' /etc/default/solr.in.sh
+service solr restart
+
+## Download ICU Java plugins
+wget https://github.com/unicode-org/icu/releases/download/release-76-1/icu4j-76.1.jar
+wget https://github.com/unicode-org/icu/releases/download/release-76-1/icu4j-76.1-sources.jar
+wget https://github.com/unicode-org/icu/releases/download/release-76-1/icu4j-76.1-javadoc.jar
+wget https://github.com/unicode-org/icu/releases/download/release-76-1/icu4j-76.1-fulljavadoc.jar
+## Move .jar files to Solr
+mkdir -p /opt/solr/contrib/analysis-extras/lib
+cp /path/to/downloaded/icu4j-*.jar /opt/solr/contrib/analysis-extras/lib
+
+## Download and install Lucene
+wget https://repo1.maven.org/maven2/org/apache/lucene/lucene-analyzers-icu/8.9.0/lucene-analyzers-icu-8.9.0.jar
+wget https://repo1.maven.org/maven2/org/apache/lucene/lucene-analyzers-icu/8.9.0/lucene-analyzers-icu-8.9.0-sources.jar
+wget https://repo1.maven.org/maven2/org/apache/lucene/lucene-analyzers-icu/8.9.0/lucene-analyzers-icu-8.9.0-javadoc.jar
+cp lucene-analyzers-icu-*.jar /opt/solr-9.7.0/contrib/analysis-extras/lucene-libs/
+
+
 
 # Install DSpace backend
 ## Create DSpace system user
@@ -83,7 +106,7 @@ su postgres
 ### Open PostgreSQL shell
 psql
 ### Create user for DSpace (test PW 1111)
-CREATE USER dspace WITH PASSWORD 'ваш_пароль' CREATEDB;
+CREATE USER dspace WITH PASSWORD 'your_password' CREATEDB;
 ### Check users
 \du
 
@@ -124,10 +147,32 @@ su - dspace
 mvn -version
 cd /dspace-source
 mvn clean install
-## Isntall DSpace
+
+## Install DSpace
 cd /dspace-source/dspace/target/dspace-installer
 ant fresh_install
+## Initialize database
+dspace/bin/dspace database migrate
+## Check database
+dspace/bin/dspace database info
+<!-- A fully initialized database should list the state of all migrations as either "Success" or "Out of Order" -->
 
+## Copy Solr cores
+cp -R /dspace/solr/* /opt/solr-9.7.0/server/solr/configsets
+cp -R /dspace/solr/* /var/solr/data
+chmod -R 755 /var/solr/data/
+## Add solr user ownership
+chown -R solr:solr /opt/solr-9.7.0/server/solr/configsets
+chown -R solr:solr /opt/solr-9.7.0/
+chown -R solr:solr /opt/solr/
+chown -R solr:solr /var/solr/
+## Restart Solr
+service solr restart
+
+# Deploy web application
+java -jar /dspace/webapps/server-boot.jar
+
+# Create Administrator Account in DSpace
 
 
 # Install Maven latest
