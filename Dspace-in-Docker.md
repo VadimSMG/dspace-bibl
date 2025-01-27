@@ -1,10 +1,13 @@
 # Run Ubuntu docker image (in interactive mode)
-docker run -it -p 8000:8000 -p 8080:8080 -p 8983:8983 -p 5432:5432 ubuntu
+docker run --name dspace-service -it -p 8000:8000 -p 8080:8080 -p 8983:8983 -p 5432:5432 ubuntu
 # Update packages
 apt update -y
+apt upgrade -y
+
+# PREPARE SYSTEM
 # Install Java 
-apt install openjdk-21-jdk openjdk-17-jdk wget -y
-<!--Select region "Europe" timezone "Athenes"-->
+apt install openjdk-21-jdk openjdk-17-jdk wget vim git -y
+<!--Select region "Europe" timezone "Kyiv"-->
 java --version
 ## Add OpenJDK to PATH
 <!-- Remove old strings in .bashrc if it exist-->
@@ -42,7 +45,7 @@ source /etc/profile.d/ant.sh
 ant -version
 
 # Install PostgreSQL
-apt install -y postgresql-common -y
+apt install postgresql-common -y
 /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
 apt install postgresql-17 postgresql-contrib -y
 ## Configure TCP/IP in PostgreSQL for DSpace
@@ -66,38 +69,80 @@ sysctl -p
 ## Check file limits
 ulimit -n
 cat /proc/sys/fs/file-max
+## Restart Solr
+service solr restart
 ## Check Solr
 service solr status
 ## Check Solr user
 cat /etc/passwd | grep 'solr'
-## Allow acces to Solr fom external IPs
+## Allow acces to Solr fom external IPs (only for testing)
 <!-- Find parmeter SOLR_JETTY_HOST and set it to allow all (0.0.0.0)-->
 sed -i 's/^SOLR_JETTY_HOST=.*/SOLR_JETTY_HOST=0.0.0.0/' /etc/default/solr.in.sh
 service solr restart
 
-## Download ICU Java plugins
-wget https://github.com/unicode-org/icu/releases/download/release-76-1/icu4j-76.1.jar
-wget https://github.com/unicode-org/icu/releases/download/release-76-1/icu4j-76.1-sources.jar
-wget https://github.com/unicode-org/icu/releases/download/release-76-1/icu4j-76.1-javadoc.jar
-wget https://github.com/unicode-org/icu/releases/download/release-76-1/icu4j-76.1-fulljavadoc.jar
-## Move .jar files to Solr
-mkdir -p /opt/solr/contrib/analysis-extras/lib
-cp /path/to/downloaded/icu4j-*.jar /opt/solr/contrib/analysis-extras/lib
+<!--
+# Install Tomcat
+## Add user for Tomcat
+useradd -r -m -U -d /opt/tomcat -s /bin/false tomcat
+## Check Tomcat user
+cat /etc/passwd | grep 'tomcat'
+## Add permisson for read and write to DSpace
+usermod -aG dspace tomcat
+chmod g+rw /dspace
+## Download binares
+wget https://dlcdn.apache.org/tomcat/tomcat-10/v10.1.34/bin/apache-tomcat-10.1.34.tar.gz
+tar xzf apache-tomcat-10.1.34.tar.gz
+mv /apache-tomcat-10.1.34/* /opt/tomcat
+## Config variables
+echo 'export CATALINA_HOME=/opt/tomcat' >> /etc/profile.d/tomcat.sh
+echo 'export PATH=$PATH:$CATALINA_HOME/bin' >> /etc/profile.d/tomcat.sh
+source /etc/profile.d/tomcat.sh
+## Set Tomcat as service
+apt install clang -y
+cd $CATALINA_HOME/bin
+tar xvfz commons-daemon-native.tar.gz
+cd commons-daemon-1.1.x-native-src/unix
+./configure
+make
+cp jsvc ../..
+cd ../..
+## Configuring daemon
+CATALINA_BASE=$CATALINA_HOME
+cd $CATALINA_HOME
+./bin/jsvc \
+    -classpath $CATALINA_HOME/bin/bootstrap.jar:$CATALINA_HOME/bin/tomcat-juli.jar \
+    -outfile $CATALINA_BASE/logs/catalina.out \
+    -errfile $CATALINA_BASE/logs/catalina.err \
+    --add-opens=java.base/java.lang=ALL-UNNAMED \
+    --add-opens=java.base/java.io=ALL-UNNAMED \
+    --add-opens=java.base/java.util=ALL-UNNAMED \
+    --add-opens=java.base/java.util.concurrent=ALL-UNNAMED \
+    --add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED \
+    -Dcatalina.home=$CATALINA_HOME \
+    -Dcatalina.base=$CATALINA_BASE \
+    -Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager \
+    -Djava.util.logging.config.file=$CATALINA_BASE/conf/logging.properties \
+    org.apache.catalina.startup.Bootstrap
+## Run Tomcat daemon
+$CATALINA_HOME/bin/daemon.sh start
+## Modification server.xml
+vim /opt/tomcat/conf/server.xml
+<!-- Edit <Connector> section to next look -->
+<!-- Define a non-SSL HTTP/1.1 Connector on port 8080 -->
+<Connector port="8080"
+              minSpareThreads="25"
+              enableLookups="false"
+              redirectPort="8443"
+              connectionTimeout="20000"
+              disableUploadTimeout="true"
+              URIEncoding="UTF-8"/>
+-->
 
-## Download and install Lucene
-wget https://repo1.maven.org/maven2/org/apache/lucene/lucene-analyzers-icu/8.9.0/lucene-analyzers-icu-8.9.0.jar
-wget https://repo1.maven.org/maven2/org/apache/lucene/lucene-analyzers-icu/8.9.0/lucene-analyzers-icu-8.9.0-sources.jar
-wget https://repo1.maven.org/maven2/org/apache/lucene/lucene-analyzers-icu/8.9.0/lucene-analyzers-icu-8.9.0-javadoc.jar
-cp lucene-analyzers-icu-*.jar /opt/solr-9.7.0/contrib/analysis-extras/lucene-libs/
-
-
-
-# Install DSpace backend
+# INSTALL DSPACE BACKEND
 ## Create DSpace system user
 useradd -m dspace
 ## Download DSpace source archive
 git clone https://github.com/DSpace/DSpace.git
-wget https://github.com/DSpace/DSpace/archive/refs/tags/dspace-8.0.tar.gz
 mv /DSpace /dspace-source
 
 ## Create DSpace user for PostgreSQL
@@ -105,8 +150,8 @@ mv /DSpace /dspace-source
 su postgres
 ### Open PostgreSQL shell
 psql
-### Create user for DSpace (test PW 1111)
-CREATE USER dspace WITH PASSWORD 'your_password' CREATEDB;
+### Create user for DSpace (test PW dspace)
+CREATE USER dspace WITH PASSWORD 'dspace' CREATEDB;
 ### Check users
 \du
 
@@ -131,7 +176,7 @@ exit
 ### Copy local.cfg.EXAMPLE as local.cfg
 mv /dspace-source/dspace/config/local.cfg.EXAMPLE /dspace-source/dspace/config/local.cfg
 ### Edit new local.cfg
-nano /dspace-source/dspace/config/local.cfg
+vim /dspace-source/dspace/config/local.cfg
 <!-- Change this file for personal porposes. For test porposes use local.cfg.EXAMLE -->
 
 ## Making DSpace directory
@@ -152,10 +197,12 @@ mvn clean install
 cd /dspace-source/dspace/target/dspace-installer
 ant fresh_install
 ## Initialize database
+cd /
 dspace/bin/dspace database migrate
 ## Check database
 dspace/bin/dspace database info
 <!-- A fully initialized database should list the state of all migrations as either "Success" or "Out of Order" -->
+exit
 
 ## Copy Solr cores
 cp -R /dspace/solr/* /opt/solr-9.7.0/server/solr/configsets
@@ -166,152 +213,90 @@ chown -R solr:solr /opt/solr-9.7.0/server/solr/configsets
 chown -R solr:solr /opt/solr-9.7.0/
 chown -R solr:solr /opt/solr/
 chown -R solr:solr /var/solr/
+## Add fix for Solr 9
+vim /var/solr/data/search/conf/solrconfig.xml
+vim /var/solr/data/qaevent/conf/solrconfig.xml
+vim /var/solr/data/suggestion/conf/solrconfig.xml
+<!-- CHANGE
+    <!-- Include contributed libraries that we use in DSpace. -->
+<!--<lib dir='${solr.install.dir}/contrib/analysis-extras/lib/'
+         regex='icu4j-.*\.jar'/>
+    <lib dir='${solr.install.dir}/contrib/analysis-extras/lucene-libs/'
+         regex='lucene-analyzers-icu-.*\.jar'/>
+    TO
+     <!-- the contributed libraries have a different location in solr 9.0 -->
+    <lib dir='${solr.install.dir}/modules/analysis-extras/lib/'
+         regex='icu4j-.*\.jar'/>
+    <lib dir='${solr.install.dir}/modules/analysis-extras/lib/'
+         regex='lucene-analysis-icu-.*\.jar'/>
+-->
 ## Restart Solr
 service solr restart
 
 # Deploy web application
-java -jar /dspace/webapps/server-boot.jar
+java -jar /dspace/webapps/server-boot.jar --dspace.dir=/dspace --logging.config=file:///dspace/config/log4j2.xml
+# Check DSpace backend
+localhost:8080/server
 
 # Create Administrator Account in DSpace
+/dspace/bin/dspace create-administrator
 
-
-# Install Maven latest
-apt install maven
-mvn -v
-# Install Apache Ant
-apt install ant
-ant -v
-# Install PostgresSQL
-apt install postgresql postgresql-contrib
-## Check service
-service postgresql status
-## Start server (if need)
-service postgresql start
-# Config PostgresSQL 
-## Switch user to postgres
-su - postgres
-## Run PostgreSQL shell
-psql
-## Create new user without password
-CREATE USER dspace WITH PASSWORD NULL;
-## Create new database with unicode encoding
-CREATE DATABASE dspace WITH ENCODING 'UTF8' OWNER dspace;
-## Check database encoding
-SHOW SERVER_ENCODING;
-## Add full access to database
-GRANT ALL PRIVILEGES ON DATABASE dspace TO dspace;
-## Leave PostgreSQL shell
-\q
-## Return to root
-logout
-# Config TCP/IP for PostgresSQL
-## Edit postgresql.conf
-sed -i '$ a listen_addresses = '\''localhost'\''' /etc/postgresql/16/main/postgresql.conf
-<!--
-Adding "listen_addresses = 'localhost'" to postgresql.conf file for ver. 16. It necessary for using TCP/IP.
--->
-## Edit pg_hba.conf
-sed -i '$ a host    dspace dspace   127.0.0.1       255.255.255.255         md5' /etc/postgresql/16/main/pg_hba.conf
-<!--
-Adding "host dspace dspace 127.0.0.1 255.255.255.255 md5" to pg_hba.conf file for ver. 16. It necessary for using TCP/IP.
-first "dspace" - is DB name
-second "dspace" - is user and PW for DB access
--->
-## Restart PostgreSQL service
-service postgresql restart
-# Install Apache Solr
-## Apache Solr install (It necessary for indexation an search)
-apt install wget <!-- If it not included in image-->
-wget https://archive.apache.org/dist/lucene/solr/8.11.3/solr-8.11.3.tgz
-tar -xzf solr-*.tgz
-bash solr-*/bin/install_solr_service.sh solr-*.tgz
-## Check user for Solr
-ps -ef | grep solr
-## Change open files limit
-<!--Create file if it doesn`t exist`-->
-touch /etc/security/limits.d/root.conf
-<!--Add content to file. Set file limit to 65000-->
-sed -i '$ a root soft nofile 65000' /etc/security/limits.d/root.conf
-sed -i '$ a root hard nofile 65000' /etc/security/limits.d/root.conf
-ulimit -n 65000
-## Check Apache Solr service
-<!--It may run automaticaly after instllation. If not use next command -->
-service solr status
-<!--If ont run in auto use: -->
-service solr start
-# Isntall Tomcat 9 API
-## Install OpenJDK 11
-apt install openjdk-11-jdk
-## Add user for Tomcat
-useradd -r -m -U -d /opt/tomcat -s /bin/false tomcat
-## Download latest Tomcat version
-wget https://dlcdn.apache.org/tomcat/tomcat-11/v11.0.2/bin/apache-tomcat-11.0.2.tar.gz
-## Install Tomcat
-mkdir /usr/share/tomcat
-tar -xvzf apache-tomcat-*.tar.gz
-mv apache-tomcat-* /usr/share/tomcat
-## Create launch script for Tomcat
-cat <<EOF > /etc/init.d/tomcat
-#!bin/bash
-JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-export JAVA_HOME
-export CATALINA_HOME=/usr/share/tomcat
-$CATALINA_HOME/bin/catalina.sh start
-EOF
-## Add permission to script
-chmod +x /etc/init.d/tomcat
-## Run Tomcat service
-/etc/init.d/tomcat start
-## Check service status
-service tomcat status
-## Access rules and launch at startup
-chmod +x /etc/init.d/tomcat
-update-rc.d tomcat defaults
-## Check .bashrc
-tail ~/.bashrc
-<!--Right content in last strings:
-export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-export PATH=$PATH:$JAVA_HOME/bin
--->
-<!--If need edit-->
-nano ~/.bashrc
-source ~/.bashrc
-# Dspace install
-## Install git
-apt install git
-## Create Dspace user
-adduser dspace
-## Add Dspace user to sudo group
-usermod -aG sudo dspace
-## Switch user to Dspace
+# Create Cron tasks
+apt install cron
 su - dspace
-## Clone Dspace repo
-git clone https://github.com/DSpace/DSpace.git
-cd DSpace
-## Build DSpace project
-mvn clean install
-# Configure Dspace
-## Copy files to Docker image
-docker cp /path/to/local/file.txt <container_id>:<path/in/container>
+crontab -e
+<!-- Necessary cron tasks here: https://wiki.lyrasis.org/display/DSDOC8x/Scheduled+Tasks+via+Cron -->
 
-
-
-## Downkoad source
-wget https://github.com/DSpace/DSpace/archive/refs/tags/dspace-8.0.tar.gz
-tar -zxvf dspace-8.0.tar.gz
-<!--
-In Dspace archive was Dockerfile fo building ready-to-go Dspace image. Need to check it for working with. 
+# Enable HTTPS support (it`s necessary for Prod not for testing)
+## Install Nginx
+apt install nginx -y
+vim etc/nginx/sites-available/my.dspace.edu
+<!-- Insert next default config for 'server block' 
+# Setup HTTP to redirect to HTTPS
+server {
+  listen 80;
+  # Add your domain here. We've added "my.dspace.edu" as an example
+  server_name my.dspace.edu;
+  rewrite ^ https://my.dspace.edu permanent;
+}
+ 
+# Setup HTTPS access
+server {
+  listen 443 ssl;
+  # Add your domain here. We've added "my.dspace.edu" as an example
+  server_name my.dspace.edu;
+ 
+  # Add your SSL certificate/key path here
+  # NOTE: For LetsEncrypt, the certificate should be the full certificate chain file
+  ssl_certificate my.dspace.edu.crt (or PEM);
+  ssl_certificate_key my.dspace.edu.key;
+ 
+  # Proxy all HTTPS requests to "/server" from NGinx to Tomcat on port 8080
+  location /server {
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_pass http://localhost:8080/server;
+  }
+}
 -->
-## Backup config file
-cp ./DSpace-dspace-8.0/dspace/config/local.cfg.EXAMPLE ./DSpace-dspace-8.0/dspace/config/local.cfg
-## Edit config file
-<!--
-Need to copy Dspace config from live server.
--->
-## Build Dsapce via maven
-cd DSpace-dspace-8.0/
-mvn package
-<!--It necessary to internet connection for Maven. Process take a while. -->
-## Run Ant
-cd dspace/target/dspace-installer
-ant fresh_install
+
+# INSTALLING FRONTEND
+## Install Node.js (LTS)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+source ~/.bashrc
+nvm install 22.13.1
+## Check install
+node -v
+## Install NPM
+apt install npm -y
+## Install Yarn (v1.x)
+npm install --global yarn
+## Install Process Manager (necessary for Prod)
+npm install --global pm2
+# Download latest DSpace Aingular frontend
+git clone https://github.com/DSpace/dspace-angular.git
+## Install local dependencies
+cd /dspace-angular
+yarn install
+## Build/Compile Prod
+yarn build:prod
