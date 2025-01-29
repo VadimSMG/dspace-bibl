@@ -1,5 +1,7 @@
 # Run Ubuntu docker image (in interactive mode)
-docker run --name dspace-service -it -p 8000:8000 -p 8080:8080 -p 8983:8983 -p 5432:5432 ubuntu
+docker run --name dspace-service -it -p 8000:8000 -p 4000:4000 -p 8080:8080 -p 8983:8983 -p 5432:5432 ubuntu
+<!-- Run Docker image with all open ports ONLY FOR TESTING  -->
+docker run --name dspace-full --network host -it -P dspace-full
 # Update packages
 apt update -y
 apt upgrade -y
@@ -234,7 +236,7 @@ vim /var/solr/data/suggestion/conf/solrconfig.xml
 service solr restart
 
 # Deploy web application
-java -jar /dspace/webapps/server-boot.jar --dspace.dir=/dspace --logging.config=file:///dspace/config/log4j2.xml
+java -jar /dspace/webapps/server-boot.jar --logging.config=file:///dspace/config/log4j2-container.xml
 # Check DSpace backend
 localhost:8080/server
 
@@ -300,3 +302,51 @@ cd /dspace-angular
 yarn install
 ## Build/Compile Prod
 yarn build:prod
+
+## Deployment (recomended for Prod)
+mkdir /dspace-ui-deploy
+cp -r /dspace-angular/dist /dspace-ui-deploy
+<!-- It necessaty to NOT RENAME dist -->
+<!-- Default dir tree:
+[dspace-ui-deploy]
+    /dist
+       /browser (compiled client-side code)
+       /server  (compiled server-side code, including "main.js")
+    /config     (Optionally created in the "Configuration" step below)
+       /config.prod.yml (Optionally created in the "Configuration" step below)
+-->
+## Config deloyment
+mkdir /dspace-ui-deploy/config
+vim /dspace-ui-deploy/config/config.prod.yml
+<!-- Content of config.prod.yml:
+# The "ui" section defines where you want Node.js to run/respond. It often is a *localhost* (non-public) URL, especially if you are using a Proxy.
+# In this example, we are setting up our UI to just use localhost, port 4000.
+# This is a common setup for when you want to use Apache or Nginx to handle HTTPS and proxy requests to Node on port 4000
+ui:
+  ssl: false
+  host: localhost
+  port: 4000
+  nameSpace: /
+ 
+# This example is valid if your Backend is publicly available at https://api.mydspace.edu/server/
+# The REST settings MUST correspond to the primary/public URL of the backend. Usually, this means they must be kept in sync
+# with the value of "dspace.server.url" in the backend's local.cfg
+rest:
+  ssl: true
+  host: api.mydspace.edu
+  port: 443
+  nameSpace: /server
+-->
+
+## Configure User Interface
+
+## Test UI deployment
+cd /dspace-angular
+<!-- Run UI in dev mode -->
+yarn start:dev
+## Test REST API
+yarn test:rest
+
+## Start up UI
+cd /dspace-angular
+node ./dist/server/main.js
